@@ -12,6 +12,7 @@ for _, module_path in ipairs(Modules) do
 
 	if not ok then
 		Console.Error(string.format("[Morax-utils] Loading failed '%s': %s", module_path, tostring(err)))
+		break
 	end
 end
 
