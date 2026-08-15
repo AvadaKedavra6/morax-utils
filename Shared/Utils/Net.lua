@@ -260,11 +260,7 @@ function NetNamespace:_OnPacket(player, kind, requestId, ...)
 		return
 	end
 
-	if kind ~= PacketKind.Fire
-		and kind ~= PacketKind.Invoke
-		and kind ~= PacketKind.Response
-		and kind ~= PacketKind.Batch
-	then
+	if kind ~= PacketKind.Fire and kind ~= PacketKind.Invoke and kind ~= PacketKind.Response and kind ~= PacketKind.Batch then
 		if DebugEnabled then
 			Log(string.format("[Net:%s] Dropped packet with unknown kind: %s", self.Name, tostring(kind)))
 		end
@@ -293,12 +289,7 @@ function NetNamespace:_DispatchFire(player, ...)
 
 		if filtered == false then
 			if DebugEnabled then
-				Log(string.format(
-					"[Net:%s] Fire < %s BLOCKED by inbound middleware (%s)",
-					self.Name,
-					tostring(player),
-					reason or "no reason given"
-				))
+				Log(string.format("[Net:%s] Fire < %s BLOCKED by inbound middleware (%s)", self.Name, tostring(player), reason or "no reason given"))
 			end
 
 			return
@@ -355,12 +346,7 @@ function NetNamespace:_DispatchInvoke(player, requestId, ...)
 	self._metrics.invokeReceived = self._metrics.invokeReceived + 1
 
 	if DebugEnabled then
-		Log(string.format(
-			"[Net:%s] Invoke < %s (id=%s)",
-			self.Name,
-			tostring(player),
-			requestId
-		))
+		Log(string.format("[Net:%s] Invoke < %s (id=%s)", self.Name, tostring(player), requestId))
 	end
 
 	if not self._invokeHandler then
@@ -371,25 +357,16 @@ function NetNamespace:_DispatchInvoke(player, requestId, ...)
 	local handlerPromise
 
 	if IsServer then
-		handlerPromise = Promise.try(
-			self._invokeHandler,
-			player,
-			table.unpack(args, 1, SafeN(args))
-		)
+		handlerPromise = Promise.try(self._invokeHandler, player, table.unpack(args, 1, SafeN(args)))
 	else
-		handlerPromise = Promise.try(
-			self._invokeHandler,
-			table.unpack(args, 1, SafeN(args))
-		)
+		handlerPromise = Promise.try(self._invokeHandler, table.unpack(args, 1, SafeN(args)))
 	end
 
-	handlerPromise
-		:andThen(function(...)
-			self:_SendResponse(player, requestId, true, ...)
-		end)
-		:catch(function(err)
-			self:_SendResponse(player, requestId, false, tostring(err))
-		end)
+	handlerPromise:andThen(function(...)
+		self:_SendResponse(player, requestId, true, ...)
+	end):catch(function(err)
+		self:_SendResponse(player, requestId, false, tostring(err))
+	end)
 end
 
 ---@private
@@ -414,19 +391,11 @@ function NetNamespace:_DispatchResponse(requestId, success, ...)
 	local latencyMs = (os.clock() - pending.sentAt) * 1000
 	local completed = self._metrics.invokeCompleted
 
-	self._metrics.avgLatencyMs =
-		((self._metrics.avgLatencyMs * completed) + latencyMs) / (completed + 1)
-
+	self._metrics.avgLatencyMs = ((self._metrics.avgLatencyMs * completed) + latencyMs) / (completed + 1)
 	self._metrics.invokeCompleted = completed + 1
 
 	if DebugEnabled then
-		Log(string.format(
-			"[Net:%s] Response (id=%s, success=%s, %.1fms)",
-			self.Name,
-			requestId,
-			tostring(success),
-			latencyMs
-		))
+		Log(string.format("[Net:%s] Response (id=%s, success=%s, %.1fms)", self.Name, requestId, tostring(success), latencyMs))
 	end
 
 	if success then
@@ -491,11 +460,7 @@ function NetNamespace:Fire(...)
 
 	if IsServer then
 		local player = ...
-
-		assert(
-			player ~= nil,
-			"NetNamespace:Fire(player, ...) requires a Player on the Server"
-		)
+		assert(player ~= nil, "NetNamespace:Fire(player, ...) requires a Player on the Server")
 
 		local args = table.pack(select(2, ...))
 		self:_SendFiltered(player, args)
@@ -512,12 +477,7 @@ function NetNamespace:_SendFiltered(target, args)
 
 		if filtered == false then
 			if DebugEnabled then
-				Log(string.format(
-					"[Net:%s] Fire > %s BLOCKED by outbound middleware (%s)",
-					self.Name,
-					tostring(target),
-					reason or "no reason given"
-				))
+				Log(string.format("[Net:%s] Fire > %s BLOCKED by outbound middleware (%s)", self.Name, tostring(target), reason or "no reason given"))
 			end
 
 			return
@@ -537,12 +497,7 @@ function NetNamespace:_SendFiltered(target, args)
 		return
 	end
 
-	self:_Send(
-		target,
-		PacketKind.Fire,
-		"",
-		table.unpack(args, 1, SafeN(args))
-	)
+	self:_Send(target, PacketKind.Fire, "", table.unpack(args, 1, SafeN(args)))
 end
 
 ---**Server only.** Broadcasts a fire and forget message to every currently connected Player.
@@ -615,17 +570,11 @@ function NetNamespace:FireInRadius(location, radius, ...)
 	local args = table.pack(...)
 
 	if #self._outboundMiddleware > 0 then
-		-- player is always nil here: nanos resolves the radius targeting itself, so middleware
-		-- never sees individual recipients for this call.
 		local filtered, reason = RunMiddleware(self._outboundMiddleware, nil, args)
 
 		if filtered == false then
 			if DebugEnabled then
-				Log(string.format(
-					"[Net:%s] FireInRadius BLOCKED by outbound middleware (%s)",
-					self.Name,
-					reason or "no reason given"
-				))
+				Log(string.format("[Net:%s] FireInRadius BLOCKED by outbound middleware (%s)", self.Name, reason or "no reason given"))
 			end
 
 			return
@@ -635,16 +584,7 @@ function NetNamespace:FireInRadius(location, radius, ...)
 	end
 
 	self._metrics.fireSent = self._metrics.fireSent + 1
-
-	Events.BroadcastRemoteInRadius(
-		self._channel,
-		location,
-		radius,
-		self._reliability,
-		PacketKind.Fire,
-		"",
-		table.unpack(args, 1, SafeN(args))
-	)
+	Events.BroadcastRemoteInRadius(self._channel, location, radius, self._reliability, PacketKind.Fire, "", table.unpack(args, 1, SafeN(args)))
 end
 
 -- Public API :: Connect
@@ -678,7 +618,7 @@ function NetNamespace:Connect(callback, cleaner)
 	return connection
 end
 
----Like `:Connect()`, but automatically disconnects itself after the first message received.
+---Like `:Connect()` but automatically disconnects itself after the first message received.
 ---@param callback function
 ---@param cleaner table?
 ---@return NetConnection connection
@@ -704,28 +644,17 @@ function NetNamespace:_DoInvoke(timeoutOverride, ...)
 
 	if IsServer then
 		player = ...
-
-		assert(
-			player ~= nil,
-			"NetNamespace:Invoke(player, ...) requires a Player on the Server"
-		)
-
+		assert(player ~= nil,"NetNamespace:Invoke(player, ...) requires a Player on the Server")
 		args = table.pack(select(2, ...))
 	else
 		args = table.pack(...)
 	end
 
 	if #self._outboundMiddleware > 0 then
-		local filtered, reason = RunMiddleware(
-			self._outboundMiddleware,
-			player,
-			args
-		)
+		local filtered, reason = RunMiddleware(self._outboundMiddleware, player, args)
 
 		if filtered == false then
-			return Promise.reject(
-				reason or "BLOCKED_BY_OUTBOUND_MIDDLEWARE"
-			)
+			return Promise.reject(reason or "BLOCKED_BY_OUTBOUND_MIDDLEWARE")
 		end
 
 		args = filtered
@@ -737,12 +666,7 @@ function NetNamespace:_DoInvoke(timeoutOverride, ...)
 	self._metrics.invokeSent = self._metrics.invokeSent + 1
 
 	if DebugEnabled then
-		Log(string.format(
-			"[Net:%s] Invoke > %s (id=%s)",
-			self.Name,
-			tostring(player),
-			requestId
-		))
+		Log(string.format("[Net:%s] Invoke > %s (id=%s)", self.Name, tostring(player), requestId))
 	end
 
 	local promise = Promise.new(function(resolve, reject, onCancel)
@@ -758,12 +682,7 @@ function NetNamespace:_DoInvoke(timeoutOverride, ...)
 		end)
 
 		local ok, err = pcall(function()
-			self:_Send(
-				player,
-				PacketKind.Invoke,
-				requestId,
-				table.unpack(args, 1, SafeN(args))
-			)
+			self:_Send(player, PacketKind.Invoke, requestId, table.unpack(args, 1, SafeN(args)))
 		end)
 
 		if not ok then
@@ -772,10 +691,7 @@ function NetNamespace:_DoInvoke(timeoutOverride, ...)
 		end
 	end)
 
-	promise = promise:timeout(
-		timeoutOverride or self._invokeTimeout,
-		"NET_INVOKE_TIMEOUT"
-	)
+	promise = promise:timeout(timeoutOverride or self._invokeTimeout, "NET_INVOKE_TIMEOUT")
 
 	promise:catch(function(err)
 		if err == "NET_INVOKE_TIMEOUT" then
@@ -810,11 +726,7 @@ end
 ---@param ... any
 ---@return PromiseObject<unknown>
 function NetNamespace:InvokeWithTimeout(timeout, ...)
-	assert(
-		type(timeout) == "number" and timeout > 0,
-		"InvokeWithTimeout expects a positive number as first arg"
-	)
-
+	assert(type(timeout) == "number" and timeout > 0, "InvokeWithTimeout expects a positive number as first arg")
 	return self:_DoInvoke(timeout, ...)
 end
 
@@ -828,16 +740,10 @@ end
 ---On the **Client**, `handler` is called as `handler(...args)`.
 ---@param handler fun(...: any): any
 function NetNamespace:SetInvokeHandler(handler)
-	assert(
-		type(handler) == "function",
-		"NetNamespace:SetInvokeHandler expects a function"
-	)
+	assert(type(handler) == "function", "NetNamespace:SetInvokeHandler expects a function")
 
 	if self._invokeHandler and DebugEnabled then
-		Log(string.format(
-			"[Net:%s] SetInvokeHandler called twice, overwriting the previous handler",
-			self.Name
-		))
+		Log(string.format("[Net:%s] SetInvokeHandler called twice, overwriting the previous handler", self.Name))
 	end
 
 	self._invokeHandler = handler
@@ -910,10 +816,7 @@ end
 ---@param options NetNamespaceOptions?
 ---@return NetNamespace
 function Net.Namespace(name, options)
-	assert(
-		type(name) == "string" and #name > 0,
-		"Net.Namespace expects a non-empty string name"
-	)
+	assert(type(name) == "string" and #name > 0, "Net.Namespace expects a non-empty string name")
 
 	local existing = Net._namespaces[name]
 
