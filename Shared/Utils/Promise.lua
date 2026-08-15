@@ -205,14 +205,7 @@ end
 ---@return number length
 ---@return any[] values
 local function runExecutor(traceback, callback, ...)
-    local results = table.pack(
-        xpcall(
-            callback,
-            makeErrorHandler(traceback),
-            ...
-        )
-    )
-
+    local results = table.pack(xpcall(callback, makeErrorHandler(traceback), ...))
     local success = results[1]
     table.remove(results, 1)
     return success, #results, results
@@ -226,11 +219,7 @@ end
 ---@return function
 local function createAdvancer(traceback, callback, resolve, reject)
     return function(...)
-        local success, resultLength, result = runExecutor(
-            traceback,
-            callback,
-            ...
-        )
+        local success, resultLength, result = runExecutor(traceback, callback, ...)
 
         if success then
             resolve(unpack(result, 1, resultLength))
@@ -428,13 +417,7 @@ function Promise._new(traceback, executor, parent)
     end
 
     self._thread = coroutine.create(function()
-        local success, _, results = runExecutor(
-            traceback,
-            executor,
-            resolve,
-            reject,
-            onCancel
-        )
+        local success, _, results = runExecutor(traceback, executor, resolve, reject, onCancel)
 
         if not success then
             reject(results[1])
@@ -479,17 +462,11 @@ function Promise.new(executor)
         error(string.format(ErrorNonFunction, "Promise.new"), 2)
     end
 
-    return Promise._new(
-        debug.traceback(nil, 2),
-        executor
-    )
+    return Promise._new(debug.traceback(nil, 2), executor)
 end
 
 function PromiseObject:__tostring()
-    return string.format(
-        "Promise(%s)",
-        self._status
-    )
+    return string.format("Promise(%s)", self._status)
 end
 
 ---Creates a Promise whose executor starts on the next engine tick.
@@ -515,13 +492,7 @@ function Promise.defer(executor)
                     return
                 end
 
-                local success, _, results = runExecutor(
-                    traceback,
-                    executor,
-                    resolve,
-                    reject,
-                    onCancel
-                )
+                local success, _, results = runExecutor(traceback, executor, resolve, reject, onCancel)
 
                 if not success then
                     reject(results[1])
@@ -548,6 +519,7 @@ Promise.async = Promise.defer
 function Promise.resolve(value)
     return Promise._new(
         debug.traceback(nil, 2),
+
         function(resolve)
             resolve(value)
         end
@@ -562,6 +534,7 @@ function Promise.reject(...)
 
     return Promise._new(
         debug.traceback(nil, 2),
+
         function(_, reject)
             reject(unpack(values, 1, length))
         end
@@ -585,6 +558,7 @@ function Promise.try(callback, ...)
 
     return Promise._new(
         traceback,
+
         function(resolve)
             resolve(callback(unpack(values, 1, length)))
         end
@@ -614,10 +588,7 @@ function Promise.all(promises)
         return Promise.resolve({})
     end
 
-    return Promise._all(
-        debug.traceback(nil, 2),
-        promises
-    )
+    return Promise._all(debug.traceback(nil, 2), promises)
 end
 
 ---@private
@@ -757,11 +728,7 @@ function Promise.fold(list, reducer, initialValue)
         list,
         function(value, index)
             accumulator = accumulator:andThen(function(previousValue)
-                return reducer(
-                    previousValue,
-                    value,
-                    index
-                )
+                return reducer(previousValue, value, index)
             end)
 
             return nil
@@ -799,11 +766,7 @@ function Promise.some(promises, count)
         end
     end
 
-    return Promise._all(
-        debug.traceback(nil, 2),
-        promises,
-        count
-    )
+    return Promise._all(debug.traceback(nil, 2), promises, count)
 end
 
 ---Resolves as soon as any input Promise resolves.
@@ -811,10 +774,7 @@ end
 ---@param promises PromiseObject<T>[]
 ---@return PromiseObject<T>
 function Promise.any(promises)
-    return Promise.some(
-        promises,
-        1
-    ):andThen(function(values)
+    return Promise.some(promises, 1):andThen(function(values)
         return values[1]
     end)
 end
@@ -857,12 +817,6 @@ function Promise.allSettled(promises)
             end)
 
             for index, promise in ipairs(promises) do
-                -- finally() re-settles like the original promise. When the
-                -- original is rejected, the promise returned by finally()
-                -- also rejects. Nobody observes that rejection by default,
-                -- which would trigger an unhandled-rejection warning.
-                -- We attach a no-op catch so the rejection is considered handled
-                -- while still keeping the finally-promise for cancellation.
                 local settled = promise:finally(function(status)
                     if finished then
                         return
@@ -982,11 +936,7 @@ function Promise.each(list, predicate)
                 end
 
                 local valuePromise = Promise.resolve(value)
-
-                table.insert(
-                    childPromises,
-                    valuePromise
-                )
+                table.insert(childPromises, valuePromise)
 
                 local success, resolvedValue = valuePromise:await()
 
@@ -1000,19 +950,10 @@ function Promise.each(list, predicate)
                     return
                 end
 
-                local predicatePromise = Promise.try(
-                    predicate,
-                    resolvedValue,
-                    index
-                )
+                local predicatePromise = Promise.try(predicate, resolvedValue, index)
+                table.insert(childPromises, predicatePromise)
 
-                table.insert(
-                    childPromises,
-                    predicatePromise
-                )
-
-                local predicateSuccess, result =
-                    predicatePromise:await()
+                local predicateSuccess, result = predicatePromise:await()
 
                 if not predicateSuccess then
                     cancelChildren()
@@ -1074,10 +1015,7 @@ function Promise.promisify(callback)
     end
 
     return function(...)
-        return Promise.try(
-            callback,
-            ...
-        )
+        return Promise.try(callback, ...)
     end
 end
 
@@ -1104,9 +1042,7 @@ function Promise.delay(seconds)
             local startTime = Promise._getTime()
 
             local timerId = Timer.SetTimeout(function()
-                resolve(
-                    Promise._getTime() - startTime
-                )
+                resolve(Promise._getTime() - startTime)
             end, seconds * 1000)
 
             onCancel(function()
@@ -1169,11 +1105,7 @@ function PromiseObject:andThen(successHandler, failureHandler)
         error(string.format(ErrorNonFunction, "Promise:andThen"), 2)
     end
 
-    return self:_andThen(
-        debug.traceback(nil, 2),
-        successHandler,
-        failureHandler
-    )
+    return self:_andThen(debug.traceback(nil, 2), successHandler, failureHandler)
 end
 
 ---Internal implementation of `Promise:andThen`.
@@ -1394,13 +1326,11 @@ function PromiseObject:_finally(traceback, finallyHandler)
                     if Promise.is(callbackReturn) then
                         handlerPromise = callbackReturn
 
-                        callbackReturn
-                            :andThen(function()
-                                resolve(self)
-                            end)
-                            :catch(function(...)
-                                reject(...)
-                            end)
+                        callbackReturn:andThen(function()
+                            resolve(self)
+                        end):catch(function(...)
+                            reject(...)
+                        end)
                     else
                         resolve(self)
                     end
@@ -1442,6 +1372,7 @@ function PromiseObject:finallyCall(callback, ...)
 
     return self:_finally(
         debug.traceback(nil, 2),
+
         function()
             return callback(unpack(values, 1, length))
         end
@@ -1456,6 +1387,7 @@ function PromiseObject:finallyReturn(...)
 
     return self:_finally(
         debug.traceback(nil, 2),
+
         function()
             return unpack(values, 1, length)
         end
@@ -1506,7 +1438,7 @@ end
 
 ---Yields until the Promise settles.
 ---
----Returns `true` followed by the resolved values, or `false` followed by
+---Returns `true` followed by the resolved values or `false` followed by
 ---the rejected values.
 ---
 ---Cancellation also returns `false`. Use `awaitStatus()` when cancellation
@@ -1732,10 +1664,7 @@ function Promise.retry(callback, times, ...)
     local length, values = pack(...)
 
     local function attempt(remaining)
-        return Promise.try(
-            callback,
-            unpack(values, 1, length)
-        ):catch(function(...)
+        return Promise.try(callback, unpack(values, 1, length)):catch(function(...)
             if remaining > 0 then
                 return attempt(remaining - 1)
             end
@@ -1772,10 +1701,7 @@ function Promise.retryWithDelay(callback, times, seconds, ...)
     local length, values = pack(...)
 
     local function attempt(remaining)
-        return Promise.try(
-            callback,
-            unpack(values, 1, length)
-        ):catch(function(...)
+        return Promise.try(callback, unpack(values, 1, length)):catch(function(...)
             if remaining <= 0 then
                 return Promise.reject(...)
             end
@@ -1799,11 +1725,7 @@ end
 ---@param unsubscribe fun(callback: fun(...: any))
 ---@param predicate? fun(...: any): boolean
 ---@return PromiseObject<T>
-function Promise.fromEvent(
-    subscribe,
-    unsubscribe,
-    predicate
-)
+function Promise.fromEvent(subscribe, unsubscribe, predicate)
     if not isCallable(subscribe) then
         error("Bad argument #1 to Promise.fromEvent: must be a function", 2)
     end
@@ -1822,6 +1744,7 @@ function Promise.fromEvent(
 
     return Promise._new(
         debug.traceback(nil, 2),
+
         function(resolve, reject, onCancel)
             local callback
             local disconnected = false
@@ -1832,11 +1755,7 @@ function Promise.fromEvent(
                 end
 
                 disconnected = true
-
-                local success, err = pcall(
-                    unsubscribe,
-                    callback
-                )
+                local success, err = pcall(unsubscribe, callback)
 
                 if not success then
                     Console.Error("[Morax-utils] Failed to unsubscribe Promise.fromEvent: " .. tostring(err))
@@ -1850,10 +1769,7 @@ function Promise.fromEvent(
                     return
                 end
 
-                local success, predicateResult = pcall(
-                    predicate,
-                    ...
-                )
+                local success, predicateResult = pcall(predicate, ...)
 
                 if not success then
                     disconnect()
@@ -1887,10 +1803,7 @@ function Promise.fromEvent(
                 end
             end
 
-            local success, subscribeError = pcall(
-                subscribe,
-                callback
-            )
+            local success, subscribeError = pcall(subscribe, callback)
 
             if not success then
                 callback = nil
@@ -1919,10 +1832,7 @@ end
 ---@param eventName string
 ---@param predicate? fun(...: any): boolean
 ---@return PromiseObject<T>
-function Promise.fromNanosEvent(
-    eventName,
-    predicate
-)
+function Promise.fromNanosEvent(eventName, predicate)
     if type(eventName) ~= "string" then
         error("Bad argument #1 to Promise.fromNanosEvent: must be a string", 2)
     end
@@ -1947,10 +1857,7 @@ end
 ---@param eventName string
 ---@param predicate? fun(...: any): boolean
 ---@return PromiseObject<T>
-function Promise.fromRemoteNanosEvent(
-    eventName,
-    predicate
-)
+function Promise.fromRemoteNanosEvent(eventName, predicate)
     if type(eventName) ~= "string" then
         error("Bad argument #1 to Promise.fromRemoteNanosEvent: must be a string", 2)
     end
@@ -1976,11 +1883,7 @@ end
 ---@param eventName string
 ---@param predicate? fun(...: any): boolean
 ---@return PromiseObject<T>
-function Promise.fromEntityEvent(
-    entity,
-    eventName,
-    predicate
-)
+function Promise.fromEntityEvent(entity, eventName, predicate)
     if entity == nil then
         error("Bad argument #1 to Promise.fromEntityEvent: entity cannot be nil", 2)
     end
@@ -2016,11 +1919,7 @@ end
 ---@param eventName string
 ---@param predicate? fun(...: any): boolean
 ---@return PromiseObject<T>
-function Promise.fromRemoteEvent(
-    entity,
-    eventName,
-    predicate
-)
+function Promise.fromRemoteEvent(entity, eventName, predicate)
     if entity == nil then
         error("Bad argument #1 to Promise.fromRemoteEvent: entity cannot be nil", 2)
     end
@@ -2058,11 +1957,7 @@ function Promise.onUnhandledRejection(callback)
         error(string.format(ErrorNonFunction, "Promise.onUnhandledRejection"), 2)
     end
 
-    table.insert(
-        Promise._unhandledRejectionCallbacks,
-        callback
-    )
-
+    table.insert(Promise._unhandledRejectionCallbacks, callback)
     local removed = false
 
     return function()
@@ -2072,16 +1967,10 @@ function Promise.onUnhandledRejection(callback)
 
         removed = true
 
-        local index = tableFind(
-            Promise._unhandledRejectionCallbacks,
-            callback
-        )
+        local index = tableFind(Promise._unhandledRejectionCallbacks, callback)
 
         if index then
-            table.remove(
-                Promise._unhandledRejectionCallbacks,
-                index
-            )
+            table.remove(Promise._unhandledRejectionCallbacks, index)
         end
     end
 end
