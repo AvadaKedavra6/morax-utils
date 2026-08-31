@@ -4,7 +4,7 @@
 
 Morax-utils borrows the shape of a few well-known Roblox utilities `Trove`, `Promise`, `Comm`, `BridgeNet`, `Component` and rebuilds them from the ground up against nanos world's own APIs (`Timer`, `Events`, `Entity`, `Character`).
 
-📖 **Full documentation: [Morax Docs](https://my-docs)**
+📖 **Full documentation: [Morax Docs]([https://my-docs](https://morax-utils-docs.vercel.app))**
 
 ---
 
@@ -12,16 +12,16 @@ Morax-utils borrows the shape of a few well-known Roblox utilities `Trove`, `Pro
 
 | Module | What it does |
 | --- | --- |
-| [**Cleaner**](https://your-docs-url-here/docs/cleaner/overview) | Lifecycle & memory management tracks connections, timers, promises and any Destroy-able object, then tears them all down in one call. The nanos world sibling of Trove. |
-| [**Promise**](https://your-docs-url-here/docs/promise/overview) | Async control flow a full Promise/A+-style implementation for Lua: chaining, cancellation, combinators, retries and timeouts, built for a single-threaded engine. |
-| [**Net**](https://your-docs-url-here/docs/net/overview) | Client / server communication namespaced remotes with Fire-and-forget and Invoke/response calls, middleware, batching and metrics, inspired by Comm and BridgeNet. |
-| [**Component**](https://your-docs-url-here/docs/component/overview) | Entity binding & lifecycle binds custom logic classes to tagged entities with an automatic Construct/Start/Stop lifecycle, extensions, ticking and networked properties. |
+| **Cleaner** | Lifecycle & memory management tracks connections, timers, promises and any Destroy-able object, then tears them all down in one call. The nanos world sibling of Trove. |
+| **Promise** | Async control flow a full Promise/A+-style implementation for Lua: chaining, cancellation, combinators, retries and timeouts, built for a single-threaded engine. |
+| **Net** | Client / server communication namespaced remotes with Fire-and-forget and Invoke/response calls, middleware, batching and metrics, inspired by Comm and BridgeNet. |
+| **Component** | Entity binding & lifecycle binds custom logic classes to tagged entities with an automatic Construct/Start/Stop lifecycle, extensions, ticking and networked properties. |
 
 Every module is independent. Use `Cleaner` without `Net` or `Promise` on its own, they only lean on each other where it genuinely simplifies your code like `Net:Invoke()` returning a `Promise` or `Component` using `Cleaner` internally for its own bookkeeping.
 
 ## Installation
 
-See the [installation guide](https://my-docs/docs/installation) on the docs site for the full setup, including Server/Client/Shared realm placement.
+See the [installation guide](https://morax-utils-docs.vercel.app/docs/installation) on the docs site for the full setup, including Server/Client/Shared realm placement.
 
 ## Contributing
 
