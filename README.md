@@ -4,7 +4,7 @@
 
 Morax-utils borrows the shape of a few well-known Roblox utilities `Trove`, `Promise`, `Comm`, `BridgeNet`, `Component` and rebuilds them from the ground up against nanos world's own APIs (`Timer`, `Events`, `Entity`, `Character`).
 
-📖 **Full documentation: [Morax Docs](https://my-docs](https://morax-utils-docs.vercel.app)**
+📖 **Full documentation:** https://morax-utils-docs.vercel.app
 
 ---
 
